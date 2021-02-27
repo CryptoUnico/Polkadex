@@ -5,7 +5,7 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch,
 use frame_support::sp_std::fmt::Debug;
 use frame_system::ensure_signed;
 use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
-use primitives::engine::{BalanceState,Log,State,SpotTrade,Commitment,FraudProof,OrderType};
+use polkadex_primitives::engine::{BalanceState,Log,State,SpotTrade,Commitment,FraudProof,OrderType};
 
 #[cfg(test)]
 mod mock;
@@ -24,7 +24,7 @@ pub trait Config: frame_system::Config {
     /// Signature provided by the trade
     type Signature: Verify<Signer=Self::Public> + Member + Decode + Encode;
     /// Asset ID
-    type AssetID: Ord;
+    type AssetID: Ord + Encode + Decode;
 }
 
 decl_storage! {

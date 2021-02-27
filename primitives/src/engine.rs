@@ -48,6 +48,14 @@ pub struct State<AssetID: Ord, Balance> {
     balances: btree_map::BTreeMap<AssetID,BalanceState<Balance>>
 }
 
+impl<AssetID: Ord, Balance> Default for State<AssetID,Balance>{
+    fn default() -> Self {
+        State{
+            balances: btree_map::BTreeMap::new()
+        }
+    }
+}
+
 #[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Commitment<AccountID, Balance, Signature, AssetID: Ord> {
@@ -55,9 +63,27 @@ pub struct Commitment<AccountID, Balance, Signature, AssetID: Ord> {
     final_state: Vec<(AccountID,State<AssetID,Balance>)>
 }
 
+impl<AccountID, Balance, Signature, AssetID: Ord> Default for Commitment<AccountID, Balance, Signature, AssetID>{
+    fn default() -> Self {
+        Commitment{
+            logs: vec![],
+            final_state: vec![]
+        }
+    }
+}
+
 #[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FraudProof<AccountID, Balance, Signature, AssetID: Ord> {
     invalid_transitions: Vec<Log<AccountID, Balance, Signature, AssetID>>,
     final_state_should_be: Vec<(AccountID,State<AssetID,Balance>)>,
+}
+
+impl<AccountID, Balance, Signature, AssetID: Ord> Default for FraudProof<AccountID, Balance, Signature, AssetID>{
+    fn default() -> Self {
+        FraudProof{
+            invalid_transitions: vec![],
+            final_state_should_be: vec![]
+        }
+    }
 }
