@@ -1,11 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, Parameter};
-use frame_support::sp_std::fmt::Debug;
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, Parameter,
+                    sp_std::fmt::Debug,
+                    traits::Get,
+                    weights::Weight};
 use frame_system::ensure_signed;
-use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
-use polkadex_primitives::engine::{BalanceState,Log,State,SpotTrade,Commitment,FraudProof,OrderType};
+use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify, Zero};
+
+use polkadex_primitives::engine::{BalanceState, Commitment, FraudProof, Log, OrderType, SpotTrade, State};
 
 #[cfg(test)]
 mod mock;
@@ -25,18 +28,20 @@ pub trait Config: frame_system::Config {
     type Signature: Verify<Signer=Self::Public> + Member + Decode + Encode;
     /// Asset ID
     type AssetID: Ord + Encode + Decode + Clone + Debug;
+    /// Dispute Period
+    type DisputePeriod: Get<<Self as frame_system::Config>::BlockNumber>;
 }
 
 decl_storage! {
 	trait Store for Module<T: Config> as Engine {
 	    /// Stores the complete trader balance state
-	    Balances get(fn get_traders): map hasher(blake2_128_concat) T::AccountId => State<T::AssetID, T::Balance>;
+	    Balances get(fn get_traders): State<T::AssetID, T::Balance, T::AccountId>;
 	    /// Unconfirmed Commitments submitted by the cloud
 	    Commitments get(fn get_commitments): map hasher(blake2_128_concat) T::BlockNumber => Commitment<T::AccountId, T::Balance, T::Signature, T::AssetID>;
 	    /// Operation Status of Exchange
 	    ExchangeStatus: bool = true;
 	    /// Valid FraudProofs
-	    FraudProofs get(fn get_fraud_proofs): map hasher(blake2_128_concat) T::AccountId => FraudProof<T::AssetID, T::Balance,T::Signature,T::AssetID>;
+	    FraudProofs get(fn get_fraud_proofs): map hasher(blake2_128_concat) T::BlockNumber => FraudProof<T::AccountId, T::Balance,T::Signature,T::AssetID>;
 	    /// Registered Providers
 	    Providers get(fn get_providers): map hasher(blake2_128_concat) T::AccountId => bool;
 	}
@@ -76,10 +81,14 @@ decl_module! {
 		// Events must be initialized if they are used by the pallet.
 		fn deposit_event() = default;
 
+		fn on_initialize(now: T::BlockNumber) -> Weight{
+		    Self::finalize_commitment(now)
+		}
+
 		#[weight = 0]
 		pub fn submit_commitment(origin, commitment: Commitment<T::AccountId, T::Balance, T::Signature, T::AssetID>) -> dispatch::DispatchResult {
 			let provider = ensure_signed(origin)?;
-			if <Providers<T>>::contains_key(provider){
+			if <Providers<T>>::contains_key(provider) && !<Commitments<T>>::contains_key(<frame_system::Module<T>>::block_number()){
 			    <Commitments<T>>::insert(<frame_system::Module<T>>::block_number(), commitment);
 			}
 			Ok(())
@@ -88,7 +97,18 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-
+    fn finalize_commitment(now: T::BlockNumber) -> Weight {
+        if now - T::DisputePeriod::get() >= 0.into() && !<FraudProofs<T>>::contains_key(now - T::DisputePeriod::get()) {
+            let commitment: Commitment<T::AccountId, T::Balance, T::Signature, T::AssetID> = <Commitments<T>>::take(now - T::DisputePeriod::get());
+            let mut prev_state: State<T::AssetID, T::Balance, T::AccountId> = <Balances<T>>::get();
+            for state in 0..commitment.final_state.len() { // FIXME: Bound this loop.
+                prev_state.balances.insert(commitment.final_state[state].0.clone(),commitment.final_state[state].1.clone());
+            }
+            <Balances<T>>::put(prev_state);
+            return Weight::zero() // FIXME: Implement proper weight based on number of loops
+        }
+        Weight::zero()
+    }
     // fn verify_signatures(maker: &Order<T::Balance, T::AccountId, T::Hash>,
     //                      taker: &Order<T::Balance, T::AccountId, T::Hash>,
     //                     maker_msg: &T::Hash,
@@ -112,7 +132,6 @@ impl<T: Config> Module<T> {
     //
     //
     // }
-
 }
 
 // This function converts a 32 byte AccountId to its byte-array equivalent form.
