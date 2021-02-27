@@ -1,14 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, Parameter};
 use frame_support::sp_std::fmt::Debug;
-use frame_support::traits::Get;
 use frame_system::ensure_signed;
-use sp_core::{sr25519};
-use sp_runtime::{ DispatchError};
 use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
-use sp_std::vec;
 
 #[cfg(test)]
 mod mock;
