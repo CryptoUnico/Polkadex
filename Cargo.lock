@@ -4360,6 +4360,7 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
+ "sp-std",
 ]
 
 [[package]]

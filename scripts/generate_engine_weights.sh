@@ -1,0 +1,2 @@
+cargo build --release --manifest-path ../node/Cargo.toml --features runtime-benchmarks
+../target/release/node-polkadex benchmark --chain=dev --execution=wasm --wasm-execution=compiled --pallet=orderbook_engine --extrinsic='*' --steps=50 --repeat=20 --heap-pages=4096 --template=../frame-weight-template.hbs --output=../pallets/Engine/src/weights.rs

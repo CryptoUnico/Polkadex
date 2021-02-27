@@ -12,13 +12,12 @@ use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDe
 use sp_std::vec;
 
 
-use types::{AccountData, Order, OrderType::AskLimit, OrderType::AskMarket, OrderType::BidLimit, OrderType::BidMarket};
+use types::{AccountData, Order, OrderType::AskLimit, OrderType::AskMarket, OrderType::BidLimit, OrderType::BidMarket, TradeStatus};
 
 #[cfg(test)]
 mod mock;
 mod benchmarking;
 mod types;
-mod weights;
 
 
 /// Configure the pallet by specifying the parameters and types on which it depends.
@@ -37,6 +36,7 @@ decl_storage! {
 	trait Store for Module<T: Config> as Engine {
 	    Providers get(fn get_providers): map hasher(blake2_128_concat) T::AccountId => Option<u32>;
 	    Traders get(fn get_traders): map hasher(blake2_128_concat) T::AccountId => AccountData<T::Hash,T::Balance>;
+	    Trades get(fn get_trades): map hasher(blake2_128_concat) (T::AccountId,T::Hash) => TradeStatus<T::Balance>;
 	}
 }
 
@@ -86,29 +86,37 @@ decl_module! {
 
 impl<T: Config> Module<T> {
     fn settle(provider: T::AccountId, maker: Order<T::Balance, T::AccountId, T::Hash>, taker: Order<T::Balance, T::AccountId, T::Hash>) -> Result<(), Error<T>> {
-        // Checks if the caller is a registered member of callers
-        if <Providers<T>>::contains_key(provider) {
-            // Checks if the signatures are valid for maker and taker
-            if Self::verify_signatures(&maker, &taker) {
-                // Verify nonce
-                let maker_account: AccountData<T::Hash, T::Balance> = <Traders<T>>::get(&maker.trader);
-                let taker_account: AccountData<T::Hash, T::Balance> = <Traders<T>>::get(&taker.trader);
-                if Self::verify_nonces(&maker_account, &maker, &taker_account, &taker) {
-                    Self::execute(&maker_account, &maker, &taker_account, &taker)?;
-                    Ok(())
-                } else {
-                    Err(Error::<T>::NonceAlreadyUsed)
-                }
-            } else {
-                Err(Error::<T>::TraderSignatureMismatch)
-            }
-        } else {
-            Err(Error::<T>::CallerNotARegisteredProvider)
-        }
-    }
-    fn verify_signatures(maker: &Order<T::Balance, T::AccountId, T::Hash>, taker: &Order<T::Balance, T::AccountId, T::Hash>) -> bool {
         let maker_msg = (maker.price, maker.quantity, maker.order_type, maker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
-        let taker_msg = (taker.price, taker.quantity, taker.order_type, taker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
+        <Trades<T>>::insert((&maker.trader, maker_msg),TradeStatus::Filled);
+        Ok(())
+        // // Create the order hash
+        // let maker_msg = (maker.price, maker.quantity, maker.order_type, maker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
+        // let taker_msg = (taker.price, taker.quantity, taker.order_type, taker.nonce).using_encoded(<T as frame_system::Config>::Hashing::hash);
+        // // Checks if the caller is a registered member of callers
+        // if <Providers<T>>::contains_key(provider) {
+        //     // Checks if the signatures are valid for maker and taker
+        //     if Self::verify_signatures(&maker, &taker, &maker_msg, &taker_msg) {
+        //         // Verify nonce
+        //         let maker_account: AccountData<T::Hash, T::Balance> = <Traders<T>>::get(&maker.trader);
+        //         let taker_account: AccountData<T::Hash, T::Balance> = <Traders<T>>::get(&taker.trader);
+        //         if Self::verify_nonces(&maker_account, &maker, &taker_account, &taker, maker_msg, taker_msg) {
+        //             Self::execute(&maker_account, &maker, &taker_account, &taker)?;
+        //             Ok(())
+        //         } else {
+        //             Err(Error::<T>::NonceAlreadyUsed)
+        //         }
+        //     } else {
+        //         Err(Error::<T>::TraderSignatureMismatch)
+        //     }
+        // } else {
+        //     Err(Error::<T>::CallerNotARegisteredProvider)
+        // }
+    }
+    fn verify_signatures(maker: &Order<T::Balance, T::AccountId, T::Hash>,
+                         taker: &Order<T::Balance, T::AccountId, T::Hash>,
+                        maker_msg: &T::Hash,
+                        taker_msg: &T::Hash) -> bool {
+
         // sr25519 always expects a 64 byte signature.
         // ensure!(maker.signature.len() == 64 && taker.signature.len() == 64, Error::<T>::InvalidSignature);
         let maker_signature: sr25519::Signature = sr25519::Signature::from_slice(&maker.signature).into();
@@ -135,18 +143,24 @@ impl<T: Config> Module<T> {
     /// 4) Easy to Verify
     /// The first principle is to prevent replay attacks.
     fn verify_nonces(maker_account: &AccountData<T::Hash, T::Balance>, maker: &Order<T::Balance, T::AccountId, T::Hash>,
-                     taker_account: &AccountData<T::Hash, T::Balance>, taker: &Order<T::Balance, T::AccountId, T::Hash>) -> bool {
-
+                     taker_account: &AccountData<T::Hash, T::Balance>, taker: &Order<T::Balance, T::AccountId, T::Hash>,
+                    maker_hash: T::Hash, taker_hash: T::Hash) -> bool {
         // FIXME: Implement an efficient nonce verification
-
-        true
+        if <Trades<T>>::contains_key((&maker.trader,maker_hash)) && <Trades<T>>::contains_key((&taker.trader,taker_hash)){
+            return false
+        }else{
+            true
+        }
     }
 
     /// TODO: Transfer the funds between maker & taker
     fn execute(mut maker_account: &AccountData<T::Hash, T::Balance>, maker: &Order<T::Balance, T::AccountId, T::Hash>,
                mut taker_account: &AccountData<T::Hash, T::Balance>, taker: &Order<T::Balance, T::AccountId, T::Hash>) -> Result<(), Error<T>> {
         match (maker.order_type, taker.order_type) {
-            (BidLimit, AskLimit) => Ok(()),
+            (BidLimit, AskLimit) => {
+
+                Ok(())
+            },
             (BidLimit, AskMarket) => Ok(()),
             (AskLimit, BidLimit) => Ok(()),
             (AskLimit, BidMarket) => Ok(()),
