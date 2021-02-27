@@ -16,49 +16,7 @@ const SEED: u32 = 0;
 benchmarks! {
 
 	settle_trade {
-	    let caller: T::AccountId = whitelisted_caller();
-	    // Add caller to Providers
-	    Providers::<T>::insert(&caller,1 as u32);
 
-	    // Credit Maker Account
-            let pubkey_maker = crypto::sr25519_generate(sp_core::crypto::KeyTypeId::from(1), None);
-	    let maker: T::AccountId = T::AccountId::decode(&mut &pubkey_maker[..]).unwrap_or_default();
-	    let maker_acc: AccountData<T::Hash,T::Balance> = AccountData{
-	        nonce: 0,
-            assets: btree_map::BTreeMap::new()
-	    };
-	    let maker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::BidLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
-	    Traders::<T>::insert(&maker, maker_acc);
-
-	    // Credit Taker Account
-	    let pubkey_taker = crypto::sr25519_generate(sp_core::crypto::KeyTypeId::from(2), None);
-	    let taker: T::AccountId = T::AccountId::decode(&mut &pubkey_taker[..]).unwrap_or_default();
-	    let taker_acc: AccountData<T::Hash,T::Balance> = AccountData{
-	        nonce: 0,
-            assets: btree_map::BTreeMap::new()
-	    };
-	    let taker_msg = (T::Balance::from(128), T::Balance::from(12), OrderType::AskLimit, 0 as u64).using_encoded(<T as frame_system::Config>::Hashing::hash);
-	    Traders::<T>::insert(&taker, taker_acc);
-
-	    let maker_order = Order{
-	    price: T::Balance::from(128),
-        quantity: T::Balance::from(12),
-        order_type: OrderType::BidLimit,
-        trader: maker,
-        nonce: 0,
-        asset_id: T::Hash::default(),
-        signature: sp_io::crypto::sr25519_sign(sp_core::crypto::KeyTypeId::from(1),&pubkey_maker,maker_msg.as_ref()).unwrap().0.encode(),
-	    };
-
-	    let taker_order = Order{
-	    price: T::Balance::from(128),
-        quantity: T::Balance::from(12),
-        order_type: OrderType::AskLimit,
-        trader: taker,
-        nonce:0,
-        asset_id: T::Hash::default(),
-        signature: sp_io::crypto::sr25519_sign(sp_core::crypto::KeyTypeId::from(2),&pubkey_taker,taker_msg.as_ref()).unwrap().0.encode(),
-	    };
 	}: _(RawOrigin::Signed(caller), maker_order, taker_order)
 }
 
