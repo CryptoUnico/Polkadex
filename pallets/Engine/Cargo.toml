@@ -12,6 +12,10 @@ std = [
 ]
 runtime-benchmarks = ["frame-benchmarking"]
 
+[dependencies.primitives]
+package = "polkadex-primitives"
+path = "../../primitives"
+version = "0.1.0"
 
 [dependencies.frame-benchmarking]
 default-features = false

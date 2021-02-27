@@ -3733,6 +3733,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "polkadex-primitives",
  "serde",
  "sp-core",
  "sp-io",

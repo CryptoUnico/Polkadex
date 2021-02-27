@@ -5,6 +5,7 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch,
 use frame_support::sp_std::fmt::Debug;
 use frame_system::ensure_signed;
 use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, MaybeSerializeDeserialize, Member, Verify};
+use primitives::engine::{BalanceState,Log,State,SpotTrade,Commitment,FraudProof,OrderType};
 
 #[cfg(test)]
 mod mock;
@@ -22,11 +23,20 @@ pub trait Config: frame_system::Config {
     type Public: IdentifyAccount<AccountId=Self::AccountId>;
     /// Signature provided by the trade
     type Signature: Verify<Signer=Self::Public> + Member + Decode + Encode;
+    /// Asset ID
+    type AssetID: Ord;
 }
 
 decl_storage! {
 	trait Store for Module<T: Config> as Engine {
-	    Traders get(fn get_traders): map hasher(blake2_128_concat) T::AccountId => u32;
+	    /// Stores the complete trader balance state
+	    Balances get(fn get_traders): map hasher(blake2_128_concat) T::AccountId => State<T::AssetID, T::Balance>;
+	    /// Unconfirmed Commitments submitted by the cloud
+	    Commitments get(fn get_commitments): map hasher(blake2_128_concat) T::BlockNumber => Commitment<T::AccountId, T::Balance, T::Signature, T::AssetID>;
+	    /// Operation Status of Exchange
+	    ExchangeStatus: bool = true;
+	    /// Valid FraudProofs
+	    FraudProofs get(fn get_fraud_proofs): map hasher(blake2_128_concat) T::AccountId => FraudProof<T::AssetID, T::Balance,T::Signature,T::AssetID>;
 	}
 }
 

@@ -59,6 +59,7 @@ impl engine::Config for Test {
 	type Balance = u128;
 	type Public = <MultiSignature as Verify>::Signer;
 	type Signature = MultiSignature;
+	type AssetID = H256;
 }
 
 pub type EngineModule = Module<Test>;
