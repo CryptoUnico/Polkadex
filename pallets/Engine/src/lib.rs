@@ -24,7 +24,7 @@ pub trait Config: frame_system::Config {
     /// Signature provided by the trade
     type Signature: Verify<Signer=Self::Public> + Member + Decode + Encode;
     /// Asset ID
-    type AssetID: Ord + Encode + Decode;
+    type AssetID: Ord + Encode + Decode + Clone + Debug;
 }
 
 decl_storage! {
@@ -37,6 +37,8 @@ decl_storage! {
 	    ExchangeStatus: bool = true;
 	    /// Valid FraudProofs
 	    FraudProofs get(fn get_fraud_proofs): map hasher(blake2_128_concat) T::AccountId => FraudProof<T::AssetID, T::Balance,T::Signature,T::AssetID>;
+	    /// Registered Providers
+	    Providers get(fn get_providers): map hasher(blake2_128_concat) T::AccountId => bool;
 	}
 }
 
@@ -75,9 +77,11 @@ decl_module! {
 		fn deposit_event() = default;
 
 		#[weight = 0]
-		pub fn settle_trade(origin) -> dispatch::DispatchResult {
-			let cloud_provider = ensure_signed(origin)?;
-
+		pub fn submit_commitment(origin, commitment: Commitment<T::AccountId, T::Balance, T::Signature, T::AssetID>) -> dispatch::DispatchResult {
+			let provider = ensure_signed(origin)?;
+			if <Providers<T>>::contains_key(provider){
+			    <Commitments<T>>::insert(<frame_system::Module<T>>::block_number(), commitment);
+			}
 			Ok(())
 		}
 	}
