@@ -27,9 +27,9 @@ pub enum VerificationErrors{
 }
 
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct SpotTrade<AccountID: Ord + Default, Balance, Signature, AssetID: Ord> {
+pub struct SpotTrade<AccountID: Ord + Default, Balance, AssetID: Ord> {
     pub trader: AccountID,
     pub price: Balance,
     pub amount: Balance,
@@ -37,14 +37,14 @@ pub struct SpotTrade<AccountID: Ord + Default, Balance, Signature, AssetID: Ord>
     pub base_asset: AssetID,
     pub quote_asset: AssetID,
     pub nonce: u128,
-    pub signature: Signature,
+    pub signature: Vec<u8>,
 }
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum Log<AccountID: Ord + Default, Balance, Signature, AssetID: Ord> {
+pub enum Log<AccountID: Ord + Default, Balance, AssetID: Ord> {
     /// SpotSettlement(maker,taker, fee as fraction, nonce)
-    SpotSettlement(SpotTrade<AccountID, Balance, Signature, AssetID>, SpotTrade<AccountID, Balance, Signature, AssetID>, Balance, u128),
+    SpotSettlement(SpotTrade<AccountID, Balance, AssetID>, SpotTrade<AccountID, Balance, AssetID>, Balance, u128),
     Withdrawal(AccountID, AssetID, Balance, u128),
     Deposit(AccountID, AssetID, Balance, u128),
 }
@@ -76,29 +76,31 @@ impl<AssetID: Ord, Balance, AccountID: Ord + Default> Default for State<AssetID,
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct Commitment<AccountID: Ord + Default, Balance, Signature, AssetID: Ord> {
-    pub logs: Vec<Log<AccountID, Balance, Signature, AssetID>>,
-    pub final_state: Vec<((AccountID, AssetID), BalanceState<Balance>)>
+pub struct Commitment<AccountID: Ord + Default, Balance, AssetID: Ord> {
+    pub logs: Vec<Log<AccountID, Balance, AssetID>>,
+    pub final_state: Vec<((AccountID, AssetID), BalanceState<Balance>)>,
+    pub nonce: u128
 }
 
-impl<AccountID: Ord + Default, Balance, Signature, AssetID: Ord> Default for Commitment<AccountID, Balance, Signature, AssetID> {
+impl<AccountID: Ord + Default, Balance, AssetID: Ord> Default for Commitment<AccountID, Balance, AssetID> {
     fn default() -> Self {
         Commitment {
             logs: vec![],
             final_state: vec![],
+            nonce: 0
         }
     }
 }
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, PartialOrd, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct FraudProof<AccountID: Ord + Default, Balance, Signature, AssetID: Ord> {
+pub struct FraudProof<AccountID: Ord + Default, Balance, AssetID: Ord> {
     fisherman: AccountID,
-    invalid_transitions: Vec<Log<AccountID, Balance, Signature, AssetID>>,
+    invalid_transitions: Vec<Log<AccountID, Balance, AssetID>>,
     final_state_should_be: Vec<((AccountID, AssetID), BalanceState<Balance>)>,
 }
 
-impl<AccountID: Ord + Default, Balance, Signature, AssetID: Ord> Default for FraudProof<AccountID, Balance, Signature, AssetID> {
+impl<AccountID: Ord + Default, Balance, AssetID: Ord> Default for FraudProof<AccountID, Balance, AssetID> {
     fn default() -> Self {
         FraudProof {
             fisherman: Default::default(),
